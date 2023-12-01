@@ -1,0 +1,63 @@
+pipeline{
+    agent any
+    stages{
+        stage('code-pull'){
+            steps{
+                sh "rm -rf"   //it works for clear the cache and for changing of any packagr version use==sudo update-alternatives --config java
+            git 'https://github.com/Anilbamnote/onlinebookstore.git'
+            }
+        }
+
+        stage('listing'){
+            steps{
+                sh "ls -la"
+                sh "pwd"
+            }
+        }
+        stage('build'){
+            steps{
+                sh 'mvn clean package'
+
+
+            }
+        }
+        stage('deploy'){
+            steps{
+                deploy adapters: [tomcat9(credentialsId: 'me', path: '', url: 'http://54.87.189.45:8080/')], contextPath: '/', war: '*/.war'
+
+            }
+        }
+    }
+}
+----
+pipeline{
+    agent any 
+    parameters{
+        string(name: "Name-Cluster",defaultValue: "cluster-project")
+        choice(name: "Select-region",choices:["us-east-1","us-east-2","ap-south-1"])
+    }
+    stages{
+        stage('Install AWS CLI and eksctl') {                //(*AWS configure manually in jenkins user with secret access key before doing below steps*)
+            steps {
+                script {
+                    sh 'sudo apt-get update -y'
+                    sh 'sudo apt-get install -y awscli'
+                    sh 'sudo curl --silent --location "https://github.com/weaveworks/eksctl/releases/latest/download/eksctl_$(uname -s)_amd64.tar.gz" | tar xz -C /tmp'
+                    sh 'sudo mv /tmp/eksctl /usr/local/bin'
+                }
+            }
+        }
+
+        stage('stage1'){
+            steps{
+                echo "name of cluster $params.Name-Cluster"
+                sh 'eksctl create cluster --name my-clus-0421 --region us-east-1'
+            }
+        }
+        stage('test'){
+            steps{
+                echo "name of region $params.Select-region"
+            }
+        }
+    }
+}

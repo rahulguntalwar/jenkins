@@ -1,0 +1,65 @@
+pipeline {
+    agent {
+        label 'nwe1'
+    }
+        stages {
+            stage('code-pull') {
+                steps {
+                    git branch: 'master', credentialsId: 'xyz', url: 'https://github.com/Anilbamnote/onlinebookstore.git'
+                        
+                    }
+                }
+            stage('build') {
+                steps {
+                    sh 'mvn clean package'
+                        
+                    }
+                }
+            stage('install-cli'){
+                steps {
+                     sh 'sudo apt-get update'
+                     sh 'sudo apt-get install awscli -y'
+                     sh 'sudo aws --version '
+                }
+            }
+            stage('upload-s3'){
+                steps {
+                  withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', accessKeyVariable: 'AWS_ACCESS_KEY_ID', credentialsId: 'aws-credencials', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY']]) {
+                        sh 'aws s3 ls'
+                        sh 'aws s3 mb s3://cdecb768-bucket01-anil'
+                        sh 'mv /home/ubuntu/workspace/${JOB_NAME}/target/*.war /tmp/student-${BUILD_ID}.war'
+                        sh 'aws s3 cp /tmp/student-${BUILD_ID}.war s3://cdecb768-bucket01-anil'
+    
+                    }
+                }
+            }
+            stage('login-war'){
+            steps{
+                sshagent(credentials:['Login_server']){
+                    sh 'sudo apt-get update -y'
+                    sh 'sudo apt-get install awscli -y'
+                    sh 'sudo aws --version'
+                    sh 'sudo -i'
+                    sh 'whoami'
+                    sh 'cd /opt/'
+                    sh 'sudo rm -rf /opt/apache-tomcat-9.0.83*'
+                    sh 'sudo wget -P /opt/ https://dlcdn.apache.org/tomcat/tomcat-9/v9.0.83/bin/apache-tomcat-9.0.83.tar.gz'
+                    sh 'sudo tar -xvf /opt/apache-tomcat-9.0.83.tar.gz'
+                    sh 'sudo rm -rf /opt/apache-tomcat-9.0.83'
+                    sh 'sudo mv apache-tomcat-9.0.83 /opt/'
+                    sh 'ls -ld /opt/apache-tomcat-9.0.83'
+                    sh 'sudo chmod +w /opt/apache-tomcat-9.0.83'
+                    sh 'sudo aws s3 sync s3://cdecb768-bucket01-anil /opt/apache-tomcat-9.0.83/webapp/'
+                    sh 'sudo /opt/apache-tomcat-9.0.83/bin/catalina.sh stop'
+                    sh 'sudo /opt/apache-tomcat-9.0.83/bin/catalina.sh start'
+                }
+
+            }
+        }
+     }
+        
+   *  create agent on node
+   * plugin ssh-agent,ssh-build-agent,mvn-integration,pipline,pipeline mvn integration,
+   * pipeline syntax : with ssh agent and create a pipeline syantax
+   * on jekinsinstace install git , mvn ,and add /etc/sudoers add (jenkins ALL=ALL NOPASSWD ALL) on jenkins user add sudo su - jenkins and aws configassure 
+   * on node is install java 11 ,  
